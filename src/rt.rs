@@ -4,15 +4,12 @@ use compio::{
 };
 use send_wrapper::SendWrapper;
 use std::{
-    future::{Future, IntoFuture, poll_fn},
+    future::Future,
     io,
-    marker::PhantomData,
     net::SocketAddr,
     ops::DerefMut,
     pin::Pin,
-    sync::Arc,
     task::{Context, Poll, ready},
-    time::Duration,
 };
 
 /// Types that can listen for connections.
