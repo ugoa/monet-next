@@ -21,9 +21,10 @@ async fn action(req: Request<Incoming>) -> Result<Response<Full<Bytes>>, Infalli
 }
 
 fn main() {
-    println!("Running http server on 0.0.0.0:23300");
+    let port = 9527;
+    println!("Running http server on 0.0.0.0:{}", port);
     let body = async {
-        let addr: SocketAddr = ([0, 0, 0, 0], 23300).into();
+        let addr: SocketAddr = ([0, 0, 0, 0], port).into();
         let listener = compio::net::TcpListener::bind(addr).await.unwrap();
 
         loop {
