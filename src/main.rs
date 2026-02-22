@@ -5,7 +5,6 @@ use http_body_util::Full;
 use hyper::{Method, Request, Response, StatusCode, body::Incoming};
 use hyper::{server::conn::http1, service::service_fn};
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::convert::Infallible;
 use std::net::SocketAddr;
 
@@ -13,10 +12,16 @@ use crate::rt::HyperStream;
 
 async fn action(
     req: Request<Incoming>,
-    cache: &RefCell<HashMap<&'static str, f32>>,
+    cache: &RefCell<i32>,
 ) -> Result<Response<Full<Bytes>>, Infallible> {
     match (req.method(), req.uri().path()) {
-        (&Method::GET, "/") => Ok(Response::new(Full::new(Bytes::from("Hello World!")))),
+        (&Method::GET, "/") => {
+            *cache.borrow_mut() += 1;
+            Ok(Response::new(Full::new(Bytes::from(format!(
+                "Visit Count: {}",
+                *cache.borrow()
+            )))))
+        }
         (&Method::GET, "/compio") => Ok(Response::new(Full::new(Bytes::from("Hello Compio!")))),
         _ => Ok(Response::builder()
             .status(StatusCode::NOT_FOUND)
@@ -32,12 +37,7 @@ fn main() {
         let addr: SocketAddr = ([0, 0, 0, 0], port).into();
         let listener = compio::net::TcpListener::bind(addr).await.unwrap();
 
-        let cache = RefCell::new(HashMap::from([
-            ("Mercury", 0.4),
-            ("Venus", 0.7),
-            ("Earth", 1.0),
-            ("Mars", 1.5),
-        ]));
+        let cache = RefCell::new(0);
 
         loop {
             let (io, _) = listener.accept().await.unwrap();
