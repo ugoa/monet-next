@@ -20,7 +20,7 @@ monoio = { version = "0.2.4", default-features = false, features = [
     "poll-io",      # experimental
 ] }
 http-body-util = "0.1.3"
-compio = { version = "0.18.0", features = ["all"] }
+compio = { version = "0.18.0", features = ["io-compat", "net"] }
 socket2 = "0.6.2"
 send_wrapper = "0.6.0"
 futures-util = "0.3.32"
