@@ -1,14 +1,19 @@
+#![allow(clippy::all)]
+#![allow(warnings)]
+
 mod rt;
 
 use bytes::Bytes;
+use futures::future::select;
+use futures::stream::FuturesUnordered;
 use http_body_util::Full;
 use hyper::{Method, Request, Response, StatusCode, body::Incoming};
 use hyper::{server::conn::http1, service::service_fn};
 use std::cell::RefCell;
 use std::convert::Infallible;
-use std::net::SocketAddr;
+use std::net::{SocketAddr, TcpStream};
 
-use crate::rt::HyperStream;
+use crate::rt::{HyperStream, Listener};
 
 async fn action(
     req: Request<Incoming>,
@@ -30,30 +35,47 @@ async fn action(
     }
 }
 
-fn main() {
+use futures::{StreamExt, future::FutureExt, select};
+
+#[compio::main]
+async fn main() {
     let port = 9527;
     println!("Running http server on 0.0.0.0:{}", port);
-    let body = async {
-        let addr: SocketAddr = ([0, 0, 0, 0], port).into();
-        let listener = compio::net::TcpListener::bind(addr).await.unwrap();
+    let addr: SocketAddr = ([0, 0, 0, 0], port).into();
+    let mut listener = compio::net::TcpListener::bind(addr).await.unwrap();
 
-        let cache = RefCell::new(0);
+    let cache = RefCell::new(0);
 
-        loop {
-            let (io, _) = listener.accept().await.unwrap();
+    let mut requests = FuturesUnordered::new();
 
-            let io = HyperStream::new(io);
-
-            compio::runtime::spawn(async {
-                if let Err(err) = http1::Builder::new()
-                    .serve_connection(io, service_fn(async |req| action(req, &cache).await))
-                    .await
-                {
-                    println!("Error serving connection: {:?}", err);
+    loop {
+        if requests.is_empty() {
+            let (io, _) = listener.accept_new().await;
+            requests.push(handle_request(io, &cache));
+        } else {
+            select! {
+                conn = listener.accept_new().fuse() => {
+                    let (io, _) = conn;
+                    requests.push(handle_request(io, &cache));
+                },
+                _ = requests.next() => {
+                    // one more request finished.
                 }
-            })
-            .detach();
+            }
         }
-    };
-    compio::runtime::Runtime::new().unwrap().block_on(body);
+    }
+}
+
+async fn handle_request(
+    stream: compio::net::TcpStream,
+    cache: &RefCell<i32>,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let io = HyperStream::new(stream);
+    if let Err(err) = http1::Builder::new()
+        .serve_connection(io, service_fn(async |req| action(req, &cache).await))
+        .await
+    {
+        println!("Error serving connection: {:?}", err);
+    }
+    Ok(())
 }

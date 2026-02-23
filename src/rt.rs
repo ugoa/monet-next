@@ -24,7 +24,7 @@ pub trait Listener: 'static {
     ///
     /// If the underlying accept call can return an error, this function must
     /// take care of logging and retrying.
-    fn accept(&mut self) -> impl Future<Output = (Self::Io, Self::Addr)>;
+    fn accept_new(&mut self) -> impl Future<Output = (Self::Io, Self::Addr)>;
 
     /// Returns the local address that this listener is bound to.
     fn local_addr(&self) -> io::Result<Self::Addr>;
@@ -34,7 +34,7 @@ impl Listener for TcpListener {
     type Addr = SocketAddr;
     type Io = TcpStream;
 
-    async fn accept(&mut self) -> (Self::Io, Self::Addr) {
+    async fn accept_new(&mut self) -> (Self::Io, Self::Addr) {
         loop {
             match Self::accept(self).await {
                 Ok(tup) => return tup,
@@ -52,7 +52,7 @@ impl Listener for UnixListener {
     type Addr = socket2::SockAddr;
     type Io = UnixStream;
 
-    async fn accept(&mut self) -> (Self::Io, Self::Addr) {
+    async fn accept_new(&mut self) -> (Self::Io, Self::Addr) {
         loop {
             match Self::accept(self).await {
                 Ok(tup) => return tup,
