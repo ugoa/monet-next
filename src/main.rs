@@ -1,17 +1,16 @@
 #![allow(clippy::all)]
 #![allow(warnings)]
-
 mod rt;
 
 use bytes::Bytes;
-use futures::future::select;
-use futures::stream::FuturesUnordered;
+use futures::{StreamExt, future::FutureExt, select, stream::FuturesUnordered};
 use http_body_util::Full;
-use hyper::{Method, Request, Response, StatusCode, body::Incoming};
-use hyper::{server::conn::http1, service::service_fn};
+use hyper::{
+    Method, Request, Response, StatusCode, body::Incoming, server::conn::http1, service::service_fn,
+};
 use std::cell::RefCell;
 use std::convert::Infallible;
-use std::net::{SocketAddr, TcpStream};
+use std::net::SocketAddr;
 
 use crate::rt::{HyperStream, Listener};
 
@@ -34,8 +33,6 @@ async fn action(
             .unwrap()),
     }
 }
-
-use futures::{StreamExt, future::FutureExt, select};
 
 #[compio::main]
 async fn main() {
