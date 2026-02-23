@@ -23,7 +23,7 @@ async fn action(
         (&Method::GET, "/") => {
             *cache.borrow_mut() += 1;
             Ok(Response::new(Full::new(Bytes::from(format!(
-                "Visit Count: {}",
+                "Visit Count: {}\n",
                 *cache.borrow()
             )))))
         }
