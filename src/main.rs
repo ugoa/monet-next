@@ -66,10 +66,9 @@ async fn main() {
     }
 }
 
-async fn handle_request(
-    stream: compio::net::TcpStream,
-    cache: &RefCell<i32>,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+type Unit = Result<(), Box<dyn std::error::Error + Send + Sync>>;
+
+async fn handle_request(stream: compio::net::TcpStream, cache: &RefCell<i32>) -> Unit {
     let io = HyperStream::new(stream);
     if let Err(err) = http1::Builder::new()
         .serve_connection(io, service_fn(async |req| action(req, &cache).await))
