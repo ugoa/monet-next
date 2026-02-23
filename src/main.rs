@@ -50,11 +50,11 @@ async fn main() {
 
     loop {
         if requests.is_empty() {
-            let (io, _) = listener.accept_new().await;
+            let (io, _) = listener.accepts().await;
             requests.push(handle_request(io, &cache));
         } else {
             select! {
-                conn = listener.accept_new().fuse() => {
+                conn = listener.accepts().fuse() => {
                     let (io, _) = conn;
                     requests.push(handle_request(io, &cache));
                 },
