@@ -79,7 +79,6 @@ async fn main() {
                 match msg {
                     Message::Incoming((io, addr)) => {
                         group.borrow_mut().insert(handle_request(io, &cache));
-                        ()
                     }
                     _ => (),
                 }
