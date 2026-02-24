@@ -3,7 +3,13 @@
 mod rt;
 
 use bytes::Bytes;
-use futures::{StreamExt, future::FutureExt, select, stream::FuturesUnordered};
+use compio::net::{TcpListener, TcpStream};
+use futures::{
+    // StreamExt,
+    future::FutureExt,
+    select,
+    stream::FuturesUnordered,
+};
 use http_body_util::Full;
 use hyper::{
     Method, Request, Response, StatusCode, body::Incoming, server::conn::http1, service::service_fn,
@@ -11,6 +17,7 @@ use hyper::{
 use std::cell::RefCell;
 use std::convert::Infallible;
 use std::net::SocketAddr;
+use std::pin::pin;
 
 use crate::rt::{HyperStream, Listener};
 
@@ -22,7 +29,7 @@ async fn action(
         (&Method::GET, "/") => {
             *cache.borrow_mut() += 1;
             Ok(Response::new(Full::new(Bytes::from(format!(
-                "Visit Count: {}\n",
+                "Visit Count: {} ",
                 *cache.borrow()
             )))))
         }
@@ -34,6 +41,17 @@ async fn action(
     }
 }
 
+use futures::stream::{self, StreamExt};
+use futures_concurrency::future::FutureGroup;
+use futures_concurrency::prelude::*;
+
+type Unit = Result<(), Box<dyn std::error::Error + Send + Sync>>;
+
+enum Message {
+    Incoming((TcpStream, SocketAddr)),
+    Completed(Option<()>),
+}
+
 #[compio::main]
 async fn main() {
     let port = 9527;
@@ -43,29 +61,34 @@ async fn main() {
 
     let cache = RefCell::new(0);
 
-    let mut requests = FuturesUnordered::new();
+    let mut group = RefCell::new(FutureGroup::new());
 
     loop {
-        if requests.is_empty() {
+        if group.borrow().is_empty() {
             let (io, _) = listener.accepts().await;
-            requests.push(handle_request(io, &cache));
+            group.borrow_mut().insert(handle_request(io, &cache));
         } else {
-            select! {
-                conn = listener.accepts().fuse() => {
-                    let (io, _) = conn;
-                    requests.push(handle_request(io, &cache));
-                },
-                _ = requests.next() => {
-                    // one more request finished.
+            let fut1 = pin!(async { listener.accepts().await });
+            let fut2 = pin!(async { group.borrow_mut().next().await });
+
+            let st1 = stream::once(fut1).map(Message::Incoming);
+            let st2 = stream::once(fut2).map(Message::Completed);
+
+            let mut async_iter = (st1, st2).merge();
+            while let Some(msg) = async_iter.next().await {
+                match msg {
+                    Message::Incoming((io, addr)) => {
+                        group.borrow_mut().insert(handle_request(io, &cache));
+                        ()
+                    }
+                    _ => (),
                 }
             }
         }
     }
 }
 
-type Unit = Result<(), Box<dyn std::error::Error + Send + Sync>>;
-
-async fn handle_request(stream: compio::net::TcpStream, cache: &RefCell<i32>) -> Unit {
+async fn handle_request(stream: compio::net::TcpStream, cache: &RefCell<i32>) -> () {
     http1::Builder::new()
         .serve_connection(
             HyperStream::new(stream),
@@ -73,5 +96,5 @@ async fn handle_request(stream: compio::net::TcpStream, cache: &RefCell<i32>) ->
         )
         .await
         .expect("Should handle request successfully");
-    Ok(())
+    ()
 }
