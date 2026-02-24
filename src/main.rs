@@ -66,12 +66,12 @@ async fn main() {
 type Unit = Result<(), Box<dyn std::error::Error + Send + Sync>>;
 
 async fn handle_request(stream: compio::net::TcpStream, cache: &RefCell<i32>) -> Unit {
-    let io = HyperStream::new(stream);
-    if let Err(err) = http1::Builder::new()
-        .serve_connection(io, service_fn(async |req| action(req, &cache).await))
+    http1::Builder::new()
+        .serve_connection(
+            HyperStream::new(stream),
+            service_fn(async |req| action(req, &cache).await),
+        )
         .await
-    {
-        println!("Error serving connection: {:?}", err);
-    }
+        .expect("Should handle request successfully");
     Ok(())
 }
