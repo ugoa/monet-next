@@ -63,25 +63,43 @@ async fn main() {
 
     let mut group = RefCell::new(FutureGroup::new());
 
+    // loop {
+    //     if group.borrow().is_empty() {
+    //         let (io, _) = listener.accepts().await;
+    //         group.borrow_mut().insert(handle_request(io, &cache));
+    //     } else {
+    //         let fut1 = pin!(async { listener.accepts().await });
+    //         let fut2 = pin!(async { group.borrow_mut().next().await });
+    //
+    //         let st1 = stream::once(fut1).map(Message::Incoming);
+    //         let st2 = stream::once(fut2).map(Message::Completed);
+    //
+    //         let mut async_iter = (st1, st2).merge();
+    //         while let Some(msg) = async_iter.next().await {
+    //             match msg {
+    //                 Message::Incoming((io, addr)) => {
+    //                     group.borrow_mut().insert(handle_request(io, &cache));
+    //                 }
+    //                 _ => (),
+    //             }
+    //         }
+    //     }
+    // }
+
     loop {
-        if group.borrow().is_empty() {
-            let (io, _) = listener.accepts().await;
-            group.borrow_mut().insert(handle_request(io, &cache));
-        } else {
-            let fut1 = pin!(async { listener.accepts().await });
-            let fut2 = pin!(async { group.borrow_mut().next().await });
+        let fut1 = pin!(async { listener.accepts().await });
+        let fut2 = pin!(async { group.borrow_mut().next().await });
 
-            let st1 = stream::once(fut1).map(Message::Incoming);
-            let st2 = stream::once(fut2).map(Message::Completed);
+        let st1 = stream::once(fut1).map(Message::Incoming);
+        let st2 = stream::once(fut2).map(Message::Completed);
 
-            let mut async_iter = (st1, st2).merge();
-            while let Some(msg) = async_iter.next().await {
-                match msg {
-                    Message::Incoming((io, addr)) => {
-                        group.borrow_mut().insert(handle_request(io, &cache));
-                    }
-                    _ => (),
+        let mut async_iter = (st1, st2).merge();
+        while let Some(msg) = async_iter.next().await {
+            match msg {
+                Message::Incoming((io, addr)) => {
+                    group.borrow_mut().insert(handle_request(io, &cache));
                 }
+                _ => (),
             }
         }
     }
