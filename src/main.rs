@@ -25,17 +25,13 @@ async fn action(
     req: Request<Incoming>,
     cache: &RefCell<i32>,
 ) -> Result<Response<Full<Bytes>>, Infallible> {
-    use std::time::Duration;
-
-    use compio::runtime::time::sleep;
-
-    sleep(Duration::from_millis(5000)).await;
+    compio::runtime::time::sleep(std::time::Duration::from_millis(5000)).await;
 
     match (req.method(), req.uri().path()) {
         (&Method::GET, "/") => {
             *cache.borrow_mut() += 1;
             Ok(Response::new(Full::new(Bytes::from(format!(
-                "Visit Count: {} ",
+                "Visit Count: {}\n",
                 *cache.borrow()
             )))))
         }
@@ -77,7 +73,11 @@ impl Actor {
         self.0
             .clone()
             .co()
-            .try_for_each(|msg| async move { todo!("handle request") })
+            .try_for_each(|msg| async move {
+                compio::runtime::time::sleep(std::time::Duration::from_millis(1000)).await;
+                println!("background job finished successfully\n");
+                Ok(())
+            })
             .await
     }
 }
