@@ -50,12 +50,36 @@ async fn action(
 use futures::stream::{self, StreamExt};
 use futures_concurrency::future::FutureGroup;
 use futures_concurrency::prelude::*;
+use futures_concurrency::prelude::*;
+
+use async_channel::{self as channel, Receiver, Sender};
 
 type Unit = Result<(), Box<dyn std::error::Error + Send + Sync>>;
 
 enum Message {
     Incoming((TcpStream, SocketAddr)),
     Completed(Option<()>),
+}
+
+type MSG = ();
+
+type Handle = Sender<MSG>;
+
+struct Actor(Receiver<MSG>);
+
+impl Actor {
+    fn new() -> (Self, Handle) {
+        let (sender, receiver) = channel::unbounded();
+        (Self(receiver), sender)
+    }
+
+    async fn run(&mut self) -> Result<(), Infallible> {
+        self.0
+            .clone()
+            .co()
+            .try_for_each(|msg| async move { todo!("handle request") })
+            .await
+    }
 }
 
 #[compio::main]
