@@ -25,6 +25,12 @@ async fn action(
     req: Request<Incoming>,
     cache: &RefCell<i32>,
 ) -> Result<Response<Full<Bytes>>, Infallible> {
+    use std::time::Duration;
+
+    use compio::runtime::time::sleep;
+
+    sleep(Duration::from_millis(5000)).await;
+
     match (req.method(), req.uri().path()) {
         (&Method::GET, "/") => {
             *cache.borrow_mut() += 1;

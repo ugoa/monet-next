@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-compio = { version = "0.18.0", features = ["io-compat", "net", "macros"] }
+compio = { version = "0.18.0", features = ["io-compat", "net", "macros", "time"] }
 bytes = "1.11.1"
 futures = "0.3.32"
 hyper = { version = "1.8.1", features = ["http1", "server"] }
@@ -14,3 +14,4 @@ send_wrapper = "0.6.0"
 futures-util = "0.3.32"
 futures-concurrency = "7.7.1"
 futures-lite = "2.6.1"
+async-channel = "2.5.0"
