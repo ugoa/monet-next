@@ -84,36 +84,47 @@ impl Actor {
     }
 }
 
-#[compio::main]
-async fn main() {
-    let port = 9527;
-    println!("Running http server on 0.0.0.0:{}", port);
-    let addr: SocketAddr = ([0, 0, 0, 0], port).into();
-    let mut listener = compio::net::TcpListener::bind(addr).await.unwrap();
+fn main() {
+    let rt = compio::runtime::Runtime::new().expect("cannot create runtime");
 
-    let cache = RefCell::new(0);
+    rt.clone().block_on(async move {
+        let port = 9527;
+        println!("Running http server on 0.0.0.0:{}", port);
+        let addr: SocketAddr = ([0, 0, 0, 0], port).into();
+        let mut listener = compio::net::TcpListener::bind(addr).await.unwrap();
 
-    let mut requests = FuturesUnordered::new();
+        let cache = RefCell::new(0);
 
-    loop {
-        if requests.is_empty() {
+        // let mut requests = FuturesUnordered::new();
+
+        loop {
             let (io, _) = listener.accepts().await;
-            requests.push(handle_request(io, &cache));
-        } else {
-            // let fut1 = pin!(async { listener.accepts().await });
-            // let fut2 = pin!(async { group.borrow_mut().next().await });
-
-            futures::select! {
-                conn = listener.accepts().fuse() => {
-                    let (io, _) = conn;
-                     requests.push(handle_request(io, &cache));
-                },
-                _ = requests.next() => {
-                    // completed
-                }
+            unsafe {
+                rt.clone()
+                    .spawn_unchecked(async { handle_request(io, &cache).await });
             }
         }
-    }
+    });
+
+    // loop {
+    //     if requests.is_empty() {
+    //         let (io, _) = listener.accepts().await;
+    //         requests.push(handle_request(io, &cache));
+    //     } else {
+    //         // let fut1 = pin!(async { listener.accepts().await });
+    //         // let fut2 = pin!(async { group.borrow_mut().next().await });
+    //
+    //         futures::select! {
+    //             conn = listener.accepts().fuse() => {
+    //                 let (io, _) = conn;
+    //                  requests.push(handle_request(io, &cache));
+    //             },
+    //             _ = requests.next() => {
+    //                 // completed
+    //             }
+    //         }
+    //     }
+    // }
 
     // let mut group = RefCell::new(FutureGroup::new());
     // loop {
