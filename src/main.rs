@@ -27,10 +27,15 @@ async fn action(
 ) -> Result<Response<Full<Bytes>>, Infallible> {
     match (req.method(), req.uri().path()) {
         (&Method::GET, "/") => {
+            compio::runtime::time::sleep(std::time::Duration::from_millis(5000)).await;
             *cache.borrow_mut() += 1;
+
+            use jiff::Zoned;
+
             Ok(Response::new(Full::new(Bytes::from(format!(
-                "Visit Count: {} ",
-                *cache.borrow()
+                "Visit Count: {} at {} \n",
+                *cache.borrow(),
+                Zoned::now()
             )))))
         }
         (&Method::GET, "/compio") => Ok(Response::new(Full::new(Bytes::from("Hello Compio!")))),
