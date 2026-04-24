@@ -45,69 +45,18 @@ async fn main() {
     loop {
         tokio::select! {
             biased;
-            stream = listener.accept() => {
+            stream = listener.accepts() => {
                 println!("Received at {}", jiff::Timestamp::now());
-                let handler: Pin<Box<dyn Future<Output = ()>>>  = Box::pin(async {
-                    let stream = stream.unwrap().0;
-                    let io = HyperStream::new(stream);
-                    http1::Builder::new()
-                        .serve_connection(io, service_fn(async |req| {
-                            sleep(Duration::from_millis(2000)).await;
-                            *cache.borrow_mut() += 1;
-                            Ok::<Response<http_body_util::Full<bytes::Bytes>>, Infallible>(Response::new(Full::new(Bytes::from(format!(
-                                "Responsed #{}  at {}  \n",
-                                cache.borrow(),
-                                jiff::Timestamp::now()
-                            )))))
-                        }))
-                        .await
-                        .unwrap();
-                });
+                let handler = async {
+                    handle_request(stream.0, &cache).await;
+                };
 
                 group.insert(handler);
                 continue;
             },
-            res =  group.next(), if !group.is_empty()  => match res {
-                None => println!("none is ready"),
-                _ => println!("completed one")
-            },
+            res =  group.next(), if !group.is_empty()  => (),
         }
     }
-
-    // loop {
-    //     let fut1 = pin!(async { listener.accepts().await });
-    //     let fut2 = pin!(async { group.borrow_mut().next().await });
-    //
-    //     let st1 = stream::once(fut1).map(Message::Incoming);
-    //     let st2 = stream::once(fut2).map(Message::Completed);
-    //
-    //     let mut async_iter = (st1, st2).merge();
-    //     async_iter
-    //         .for_each(async |msg| match msg {
-    //             Message::Incoming((io, addr)) => {
-    //                 group.borrow_mut().insert(async {
-    //                     http1::Builder::new()
-    //                         .serve_connection(
-    //                             HyperStream::new(io),
-    //                             service_fn(async |req| action(req, &cache).await),
-    //                         )
-    //                         .await
-    //                         .expect("Should handle request successfully");
-    //                 });
-    //             }
-    //             _ => (),
-    //         })
-    //         .await;
-    //
-    //     // while let Some(msg) = async_iter.next().await {
-    //     //     match msg {
-    //     //         Message::Incoming((io, addr)) => {
-    //     //             group.borrow_mut().insert(handle_request(io, &cache));
-    //     //         }
-    //     //         _ => (),
-    //     //     }
-    //     // }
-    // }
 }
 
 async fn handle_request(stream: compio::net::TcpStream, cache: &RefCell<i32>) -> () {
