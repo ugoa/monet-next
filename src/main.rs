@@ -47,12 +47,7 @@ async fn main() {
             biased;
             stream = listener.accepts() => {
                 println!("Received at {}", jiff::Timestamp::now());
-                let handler = async {
-                    handle_request(stream.0, &cache).await;
-                };
-
-                group.insert(handler);
-                continue;
+                group.insert(handle_request(stream.0, &cache));
             },
             res =  group.next(), if !group.is_empty()  => (),
         }
