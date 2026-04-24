@@ -59,7 +59,7 @@ async fn main() {
     }
 }
 
-async fn handle_request(stream: compio::net::TcpStream, cache: &RefCell<i32>) -> () {
+async fn handle_request(stream: compio::net::TcpStream, cache: &RefCell<i32>) {
     http1::Builder::new()
         .serve_connection(
             HyperStream::new(stream),
@@ -67,7 +67,6 @@ async fn handle_request(stream: compio::net::TcpStream, cache: &RefCell<i32>) ->
         )
         .await
         .expect("Should handle request successfully");
-    ()
 }
 
 async fn action(
